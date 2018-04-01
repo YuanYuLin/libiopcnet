@@ -71,6 +71,8 @@ static uint32_t uds_server_send(int socket_fd, struct msg_t *msg, struct sockadd
 	uint32_t wc = 0;
 	uint16_t msg_size = sizeof(struct msg_t) - MAX_MSG_DATA_SIZE + msg->data_size;
 	wc = sendto(socket_fd, (void*)msg, msg_size, 0, (struct sockaddr*)cli_addr, cli_addr_len);
+	if(((int32_t)wc) <0)
+		printf("error %s\n", strerror(errno));
 	return wc;
 }
 
@@ -79,6 +81,8 @@ static uint32_t udp_server_send(int socket_fd, struct msg_t *msg, struct sockadd
 	uint32_t wc = 0;
 	uint16_t msg_size = sizeof(struct msg_t) - MAX_MSG_DATA_SIZE + msg->data_size;
 	wc = sendto(socket_fd, (void*)msg, msg_size, 0, (struct sockaddr*)cli_addr, cli_addr_len);
+	if(((int32_t)wc) <0)
+		printf("error %s\n", strerror(errno));
 	return wc;
 }
 
@@ -115,6 +119,8 @@ static int uds_client_send_and_recv(struct msg_t* req, struct msg_t* res)
 	int socket_fd = -1;
         struct sockaddr_un cli_addr;
         socklen_t cli_addr_len;
+	uint8_t cli_path[30] = {0};
+	memset(&cli_path[0], 0, sizeof(cli_path));
 
 	socket_fd = socket(AF_UNIX, SOCK_DGRAM, 0);
 	if (socket_fd == -1) {
@@ -124,22 +130,9 @@ static int uds_client_send_and_recv(struct msg_t* req, struct msg_t* res)
 
 	memset(&cli_addr, 0, sizeof(struct sockaddr_un));
 	cli_addr.sun_family = AF_UNIX;
-	sprintf(cli_addr.sun_path, "%s.cli_%x", SOCKET_PATH_WWW, cli_cnt++);
-#if 0
-	for(i=0;i<MAX_CLIENT_WWW;i++) {
-		sprintf(cli_addr.sun_path, "%s.cli_%x", SOCKET_PATH_WWW, i);
-		if(access(cli_addr.sun_path, F_OK) != -1) {
-			// file exist
-			continue;
-		} else {
-			// file not exist
-			break;
-		}
-	}
-	if(i >= MAX_CLIENT_WWW) {
-		log->error(0x01, "can not find slot for clie\n");
-	}
-#endif
+	sprintf(cli_path, "%s.cli_%x", SOCKET_PATH_WWW, cli_cnt++);
+	strcpy(cli_addr.sun_path, cli_path);
+
 	log->debug(0x01, "bind path: %s\n", cli_addr.sun_path);
 
 	if(bind(socket_fd, (struct sockaddr*)&cli_addr, sizeof(struct sockaddr_un)) < 0) {
@@ -160,8 +153,8 @@ static int uds_client_send_and_recv(struct msg_t* req, struct msg_t* res)
 	log->debug(0x01, "uds cli read count = %ld\n", rc);
 
 	close_socket(socket_fd);
-	log->debug(0x01, "cli reading from %s\n", cli_addr.sun_path);
-	unlink(cli_addr.sun_path);
+	log->debug(0x01, "cli reading from %s\n", cli_path);
+	unlink(cli_path);
 	return 0;
 }
 

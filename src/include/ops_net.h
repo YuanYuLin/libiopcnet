@@ -19,7 +19,7 @@
 #include <arpa/inet.h>
 #include "ops_mq.h"
 
-#define SOCKET_PATH_WWW	"/var/run/uds.www"
+#define SOCKET_PATH_WWW	"/tmp/uds.www"
 #define MAX_CLIENT_WWW	5
 
 struct ops_net_t {
