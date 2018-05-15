@@ -68,22 +68,25 @@ static int udp_server_create(uint8_t* bind_interface, uint16_t bind_port)
 
 static uint32_t uds_server_send(int socket_fd, struct msg_t *msg, struct sockaddr_un* cli_addr, socklen_t cli_addr_len)
 {
-	uint32_t wc = 0;
+	int32_t wc = 0;
+	struct ops_log_t* log = get_log_instance();
 	uint16_t msg_size = sizeof(struct msg_t) - MAX_MSG_DATA_SIZE + msg->data_size;
+	
 	wc = sendto(socket_fd, (void*)msg, msg_size, 0, (struct sockaddr*)cli_addr, cli_addr_len);
 	if(((int32_t)wc) <0)
-		printf("error %s\n", strerror(errno));
-	return wc;
+		log->error(0x01, "uds send error %s\n", strerror(errno));
+	return (uint32_t)wc;
 }
 
 static uint32_t udp_server_send(int socket_fd, struct msg_t *msg, struct sockaddr_in* cli_addr, socklen_t cli_addr_len)
 {
-	uint32_t wc = 0;
+	int32_t wc = 0;
+	struct ops_log_t* log = get_log_instance();
 	uint16_t msg_size = sizeof(struct msg_t) - MAX_MSG_DATA_SIZE + msg->data_size;
 	wc = sendto(socket_fd, (void*)msg, msg_size, 0, (struct sockaddr*)cli_addr, cli_addr_len);
 	if(((int32_t)wc) <0)
-		printf("error %s\n", strerror(errno));
-	return wc;
+		log->error(0x01, "udp send error %s\n", strerror(errno));
+	return (uint32_t)wc;
 }
 
 static uint32_t uds_server_recv(int socket_fd, struct msg_t *msg, struct sockaddr_un* cli_addr, socklen_t* cli_addr_len)
