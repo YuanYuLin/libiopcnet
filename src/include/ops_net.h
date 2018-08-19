@@ -21,6 +21,7 @@
 
 #define SOCKET_PATH_WWW	"/tmp/uds.www"
 #define MAX_CLIENT_WWW	5
+#define BUF_SIZE	2000
 
 struct ops_net_t {
 	void (*init) (void);
@@ -36,6 +37,8 @@ struct ops_net_t {
 	uint32_t (*udp_server_recv)(int socket_fd, struct msg_t *msg, struct sockaddr_in* cli_addr, socklen_t* cli_addr_len);
 	int (*udp_client_send_and_recv)(uint8_t* serverip_str, uint16_t server_port, struct msg_t* req, struct msg_t* res);
 	void (*udp_close)(int socket_fd);
+
+	int (*qmp_client_send_and_recv)(uint8_t idx, uint8_t *req, uint8_t *res);
 };
 
 struct ops_net_t *get_net_instance();
