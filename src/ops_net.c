@@ -15,7 +15,7 @@
 #include "ops_log.h"
 #include "ops_net.h"
 
-static int uds_server_create()
+static int uds_server_create(uint8_t* uds_server_path)
 {
 	int socket_fd = -1;
 	struct sockaddr_un addr;
@@ -23,16 +23,16 @@ static int uds_server_create()
 	
 	socket_fd = socket(AF_UNIX, SOCK_DGRAM, 0);
 	if(socket_fd < 0) {
-		log->error(0x01, "socket error : %s\n", strerror(errno));
+		log->error(0xFF, __FILE__, __func__, __LINE__, "socket error : %s", strerror(errno));
 		return -1;
 	}
 	memset(&addr, 0, sizeof(addr));
 	addr.sun_family = AF_UNIX;
-	log->debug(0x01, "serv create socket path: %s\n", SOCKET_PATH_WWW);
-	strncpy(addr.sun_path, SOCKET_PATH_WWW, sizeof(addr.sun_path)-1);
-	unlink(SOCKET_PATH_WWW);
+	log->info(0xFF, __FILE__, __func__, __LINE__, "serv create socket path: %s", uds_server_path);
+	strncpy(addr.sun_path, uds_server_path, sizeof(addr.sun_path)-1);
+	unlink(uds_server_path);
 	if(bind(socket_fd, (struct sockaddr*)&addr, sizeof(addr)) < 0) {
-		log->error(0x01, "bind error : %s\n", strerror(errno));
+		log->error(0xFF, __FILE__, __func__, __LINE__, "bind error : %s", strerror(errno));
 		return -2;
 	}
 
@@ -47,7 +47,7 @@ static int udp_server_create(uint8_t* bind_interface, uint16_t bind_port)
 	
 	socket_fd = socket(AF_INET, SOCK_DGRAM, 0);
 	if(socket_fd < 0) {
-		log->error(0x01, "socket error : %s\n", strerror(errno));
+		log->error(0xFF, __FILE__, __func__, __LINE__, "socket error : %s", strerror(errno));
 		return -1;
 	}
 	setsockopt(socket_fd, SOL_SOCKET, SO_BINDTODEVICE, bind_interface, strlen(bind_interface));
@@ -55,11 +55,11 @@ static int udp_server_create(uint8_t* bind_interface, uint16_t bind_port)
 	addr.sin_family = AF_INET;
 	addr.sin_port = htons(bind_port);
 	addr.sin_addr.s_addr = htonl(INADDR_ANY);
-	log->debug(0x01, "serv create socket :%s %ld\n", bind_interface, bind_port);
+	log->debug(0xFF, __FILE__, __func__, __LINE__, "serv create socket :%s %ld", bind_interface, bind_port);
 	//strncpy(addr.sun_path, SOCKET_PATH_WWW, sizeof(addr.sun_path)-1);
 	//unlink(SOCKET_PATH_WWW);
 	if(bind(socket_fd, (struct sockaddr*)&addr, sizeof(addr)) < 0) {
-		log->error(0x01, "bind error : %s\n", strerror(errno));
+		log->error(0xFF, __FILE__, __func__, __LINE__, "bind error : %s", strerror(errno));
 		return -2;
 	}
 
@@ -74,7 +74,7 @@ static uint32_t uds_server_send(int socket_fd, struct msg_t *msg, struct sockadd
 	
 	wc = sendto(socket_fd, (void*)msg, msg_size, 0, (struct sockaddr*)cli_addr, cli_addr_len);
 	if(((int32_t)wc) <0)
-		log->error(0x01, "uds send error %s\n", strerror(errno));
+		log->error(0xFF, __FILE__, __func__, __LINE__, "uds send error %s", strerror(errno));
 	return (uint32_t)wc;
 }
 
@@ -85,7 +85,7 @@ static uint32_t udp_server_send(int socket_fd, struct msg_t *msg, struct sockadd
 	uint16_t msg_size = sizeof(struct msg_t) - MAX_MSG_DATA_SIZE + msg->data_size;
 	wc = sendto(socket_fd, (void*)msg, msg_size, 0, (struct sockaddr*)cli_addr, cli_addr_len);
 	if(((int32_t)wc) <0)
-		log->error(0x01, "udp send error %s\n", strerror(errno));
+		log->error(0xFF, __FILE__, __func__, __LINE__, "udp send error %s", strerror(errno));
 	return (uint32_t)wc;
 }
 
@@ -111,8 +111,8 @@ static void close_socket(int socket_fd)
 	}
 }
 
-static volatile uint8_t cli_cnt = 0;
-static int uds_client_send_and_recv(struct msg_t* req, struct msg_t* res)
+static volatile uint32_t cli_cnt = 0;
+static int uds_client_send_and_recv(uint8_t* uds_server_path, struct msg_t* req, struct msg_t* res)
 {
 	struct sockaddr_un addr;
 	struct ops_log_t* log = get_log_instance();
@@ -127,36 +127,36 @@ static int uds_client_send_and_recv(struct msg_t* req, struct msg_t* res)
 
 	socket_fd = socket(AF_UNIX, SOCK_DGRAM, 0);
 	if (socket_fd == -1) {
-		log->error(0x01, "cli socket: %s\n", strerror(errno));
+		log->error(0xFF, __FILE__, __func__, __LINE__, "cli socket: %s", strerror(errno));
 		return -1;
 	}
 
 	memset(&cli_addr, 0, sizeof(struct sockaddr_un));
 	cli_addr.sun_family = AF_UNIX;
-	sprintf(cli_path, "%s.cli_%x", SOCKET_PATH_WWW, cli_cnt++);
+	sprintf(cli_path, "%s.%08x", uds_server_path, cli_cnt++);
 	strcpy(cli_addr.sun_path, cli_path);
 
-	log->debug(0x01, "bind path: %s\n", cli_addr.sun_path);
+	log->debug(0x01, __FILE__, __func__, __LINE__, "bind path: %s", cli_addr.sun_path);
 
 	if(bind(socket_fd, (struct sockaddr*)&cli_addr, sizeof(struct sockaddr_un)) < 0) {
-		log->error(0x01, "cli bind error : %s\n", strerror(errno));
+		log->error(0xFF, __FILE__, __func__, __LINE__, "cli bind error : %s", strerror(errno));
 		return -2;
 	}
 
 	memset(&addr, 0, sizeof(struct sockaddr_un));
 	addr.sun_family = AF_UNIX;
-	strcpy(addr.sun_path, SOCKET_PATH_WWW);
-	log->debug(0x01, "cli sending to %s\n", addr.sun_path);
+	strcpy(addr.sun_path, uds_server_path);
+	log->debug(0x01, __FILE__, __func__, __LINE__, "cli sending to %s", addr.sun_path);
 	wc = uds_server_send(socket_fd, req, &addr, sizeof(struct sockaddr_un));
 	//wc = sendto(socket_fd, (void*)req, msg_size, 0, (struct sockaddr*)&addr, sizeof(struct sockaddr_un));
-	log->debug(0x01, "cli write count = %ld\n", wc);
+	log->debug(0x01, __FILE__, __func__, __LINE__, "cli write count = %ld", wc);
 
 	rc = uds_server_recv(socket_fd, res, &cli_addr, &cli_addr_len);
 	//rc = recvfrom(socket_fd, (void*)res, msg_size, 0, NULL, NULL);
-	log->debug(0x01, "uds cli read count = %ld\n", rc);
+	log->debug(0x01, __FILE__, __func__, __LINE__, "uds cli read count = %ld", rc);
 
 	close_socket(socket_fd);
-	log->debug(0x01, "cli reading from %s\n", cli_path);
+	log->debug(0x01, __FILE__, __func__, __LINE__, "cli reading from %s", cli_path);
 	unlink(cli_path);
 	return 0;
 }
@@ -175,7 +175,7 @@ static int qmp_client_send_and_recv(uint8_t idx, uint8_t *req, uint8_t *res)
 
 	socket_fd = socket(AF_UNIX, SOCK_STREAM, 0);
 	if (socket_fd == -1) {
-		log->error(0x01, "cli socket: %s\n", strerror(errno));
+		log->error(0xFF, __FILE__, __func__, __LINE__, "cli socket: %s", strerror(errno));
 		return -1;
 	}
 
@@ -185,12 +185,12 @@ static int qmp_client_send_and_recv(uint8_t idx, uint8_t *req, uint8_t *res)
 	strcpy(cli_addr.sun_path, cli_path);
 
 	if(connect(socket_fd, (struct sockaddr*)&cli_addr, sizeof(cli_addr)) < 0) {
-		log->debug(0x01, "qmp connect error: %s\n", strerror(errno));
+		log->error(0xFF, __FILE__, __func__, __LINE__, "qmp connect error: %s", strerror(errno));
 		return -2;
 	}
 	memset(res, 0, BUF_SIZE);
 	rc = read(socket_fd, res, BUF_SIZE);
-	log->debug(0x01, "req %d - %s\n", strlen(req), req);
+	log->debug(0x01, __FILE__, __func__, __LINE__, "req %d - %s", strlen(req), req);
 
 	#define QMP_CAP	"{\"execute\":\"qmp_capabilities\"}"
 	write(socket_fd, QMP_CAP, strlen(QMP_CAP));
@@ -200,7 +200,7 @@ static int qmp_client_send_and_recv(uint8_t idx, uint8_t *req, uint8_t *res)
 	write(socket_fd, req, strlen(req));
 	memset(res, 0, BUF_SIZE);
 	rc = read(socket_fd, res, BUF_SIZE);
-	log->debug(0x01, "rc %d, rs: %s\n", rc, res);
+	log->debug(0x01, __FILE__, __func__, __LINE__, "rc %d, rs: %s", rc, res);
 
 	close_socket(socket_fd);
 	return 0;
@@ -220,7 +220,7 @@ static int udp_client_send_and_recv(uint8_t* server_ip_str, uint16_t server_port
 
 	socket_fd = socket(AF_INET, SOCK_DGRAM, 0);
 	if (socket_fd == -1) {
-		log->error(0x01, "cli socket: %s\n", strerror(errno));
+		log->error(0xFF, __FILE__, __func__, __LINE__, "cli socket: %s", strerror(errno));
 		return -1;
 	}
 
@@ -230,7 +230,7 @@ static int udp_client_send_and_recv(uint8_t* server_ip_str, uint16_t server_port
 	cli_addr.sin_port = htons(0);
 
 	if(bind(socket_fd, (struct sockaddr*)&cli_addr, sizeof(struct sockaddr_in)) < 0) {
-		log->error(0x01, "cli bind error : %s\n", strerror(errno));
+		log->error(0xFF, __FILE__, __func__, __LINE__, "cli bind error : %s", strerror(errno));
 		return -2;
 	}
 
@@ -240,17 +240,17 @@ static int udp_client_send_and_recv(uint8_t* server_ip_str, uint16_t server_port
 	addr.sin_port = htons(server_port);
 	inet_pton(AF_INET, server_ip_str, &(addr.sin_addr));
 	//strcpy(addr.sun_path, SOCKET_PATH_WWW);
-	log->debug(0x01, "cli sending to %s\n", server_ip_str);
+	log->debug(0x01, __FILE__, __func__, __LINE__, "cli sending to %s", server_ip_str);
 	wc = udp_server_send(socket_fd, req, &addr, sizeof(struct sockaddr_in));
 	//wc = sendto(socket_fd, (void*)req, msg_size, 0, (struct sockaddr*)&addr, sizeof(struct sockaddr_un));
-	log->debug(0x01, "cli write count = %ld\n", wc);
+	log->debug(0x01, __FILE__, __func__, __LINE__, "cli write count = %ld", wc);
 
 	rc = udp_server_recv(socket_fd, res, &cli_addr, &cli_addr_len);
 	//rc = recvfrom(socket_fd, (void*)res, msg_size, 0, NULL, NULL);
-	log->debug(0x01, "udp cli read count = %ld\n", rc);
+	log->debug(0x01, __FILE__, __func__, __LINE__, "udp cli read count = %ld", rc);
 
 	close_socket(socket_fd);
-	//log->debug(0x01, "cli reading from %s\n", cli_addr.sun_path);
+	//log->debug(0x01, __FILE__, __func__, __LINE__, "cli reading from %s", cli_addr.sun_path);
 	//unlink(cli_addr.sun_path);
 	return 0;
 }

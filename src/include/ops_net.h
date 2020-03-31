@@ -19,17 +19,25 @@
 #include <arpa/inet.h>
 #include "ops_mq.h"
 
-#define SOCKET_PATH_WWW	"/tmp/uds.www"
-#define MAX_CLIENT_WWW	5
-#define BUF_SIZE	2000
+#define MAX_CLIENT_WWW		5
+#define SOCKET_PATH_WWW		"/tmp/uds.www"
+
+#define MAX_CLIENT_SHELL	1
+#define SOCKET_PATH_SHELL	"/tmp/uds.shell"
+
+#define MAX_CLIENT_LOG		1
+#define SOCKET_PATH_LOG		"/tmp/uds.log"
+
+#define BUF_SIZE		2000
 
 struct ops_net_t {
 	void (*init) (void);
 	void (*show_all) (void);
-	int (*uds_server_create)();
+
+	int (*uds_server_create)(uint8_t* uds_server_path);
 	uint32_t (*uds_server_send)(int socket_fd, struct msg_t *msg, struct sockaddr_un* cli_addr, socklen_t cli_addr_len);
 	uint32_t (*uds_server_recv)(int socket_fd, struct msg_t *msg, struct sockaddr_un* cli_addr, socklen_t* cli_addr_len);
-	int (*uds_client_send_and_recv)(struct msg_t* req, struct msg_t* res);
+	int (*uds_client_send_and_recv)(uint8_t* uds_server_path, struct msg_t* req, struct msg_t* res);
 	void (*uds_close)(int socket_fd);
 
 	int (*udp_server_create)(uint8_t* bind_interface, uint16_t bind_port);

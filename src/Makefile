@@ -12,5 +12,6 @@ LDFLAGS += -lc -lpthread -ldl
 
 SRC = 
 SRC += ops_net.c
+SRC += ops_shell.c
 
 include Makefile.include.lib
